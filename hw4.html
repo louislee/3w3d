@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+</style>
+</head>
+
+<body>
+
+<script src="js/three.min.js"></script>
+<script src="js/OrbitControls.js"></script>
+<script src="js/KeyboardState.js"></script>
+
+<script>
+var clock = new THREE.Clock();
+var scene, renderer, camera, light, lsphere;
+var controls, keyboard = new KeyboardState();
+
+var segway;
+var tire,tire2,wheelplane1_L,wheelplane1_R,wheelplane2_L,wheelplane2_R;
+var pos = new THREE.Vector3(0,0,0), angle = 0, angleL = 0, angleR = 0;
+var speed = 5, rotspeed = 0;
+var speedR = 0, speedL = 0;
+
+init();
+animate();
+
+function init()
+{
+	var width = window.innerWidth;
+	var height = window.innerHeight;
+
+	renderer = new THREE.WebGLRenderer({antialias: true});
+	renderer.setSize (width, height);
+	document.body.appendChild (renderer.domElement);
+
+	scene = new THREE.Scene();
+
+	camera = new THREE.PerspectiveCamera (45, width/height, 1, 10000);
+	camera.position.y = 160;
+	camera.position.z = 400;
+	camera.lookAt (new THREE.Vector3(0,0,0));
+	scene.add (camera);
+	
+	var wheelemap = THREE.ImageUtils.loadTexture('images/wheel.png');
+	var tiremap = THREE.ImageUtils.loadTexture('images/tire.jpg');
+	var tiregraymap = THREE.ImageUtils.loadTexture('images/tiregray.jpg');
+
+	segway = new THREE.Object3D();
+	scene.add (segway);
+	
+	//wheel plane
+	var wheelgeometry = new THREE.CircleGeometry(20, 20);
+    var wheelmaterial = new THREE.MeshPhongMaterial 
+				({
+					map: wheelmap,
+					transparent: true,  // for cut-out texture
+					side: THREE.DoubleSide
+				});
+    wheelplane1_L = new THREE.Mesh(wheelgeometry, wheelmaterial);
+	wheelplane1_R = new THREE.Mesh(wheelgeometry, wheelmaterial);
+	wheelplane2_L = new THREE.Mesh(wheelgeometry, wheelmaterial);
+	wheelplane2_R = new THREE.Mesh(wheelgeometry, wheelmaterial);
+	
+	//tire plane
+	var tireGeometry = new THREE.CylinderGeometry (19, 19, 5, 30, 1, true);
+	var tireMaterial = new THREE.MeshPhongMaterial  
+					   ({	
+							map: tiremap,
+							bumpMap: tiregraymap,
+							bumpScale: 0.9,
+                            side: THREE.DoubleSide
+						});
+    tire = new THREE.Mesh (tireGeometry, tireMaterial); 
+	
+	tire2 = new THREE.Mesh (tireGeometry, tireMaterial); 
+    tire2.rotation.order = 'ZYX';
+    tire2.rotation.z = Math.PI/2;
+	
+	tire.rotation.order = 'ZYX';
+	wheelplane1_L.rotation.y = Math.PI/2;
+	wheelplane1_R.rotation.y = Math.PI/2;
+	wheelplane2_L.rotation.y = Math.PI/2;
+	wheelplane2_R.rotation.y = Math.PI/2;
+    tire.rotation.z = Math.PI/2;
+	
+	wheelplane1_L.position.set (-25.5,20,0);
+	wheelplane1_R.position.set (-20.5,20,0);
+	wheelplane2_L.position.set (+20.5,20,0);
+	wheelplane2_R.position.set (+25.5,20,0);
+    
+	tire.position.set (-23,20,0);
+    tire2.position.set (+23,20,0);
+	
+	//pedal and others
+	
+	
+	//segway
+	segway.add (wheelplane1_L);
+	segway.add (wheelplane1_R);
+	segway.add (wheelplane2_L);
+	segway.add (wheelplane2_R);
+	segway.add (tire);
+	segway.add (tire2);
+
+	
+	controls = new THREE.OrbitControls (camera, renderer.domElement);
+	
+	
+	document.body.appendChild(renderer.domElement);
+}
+function onWindowResize()
+{
+	camera.aspect = window.innerWidth / window.innerHeight;
+	camera.updateProjectionMatrix();
+	renderer.setSize (window.innerWidth, window.innerHeight);
+}
+
+function animate()
+{
+	var dt = clock.getDelta();
+	
+	var dir = new THREE.Vector3(1,0,0);
+
+	angle += rotspeed*dt;
+	
+	dir.multiplyScalar (dt*speed).applyAxisAngle (new THREE.Vector3(0,1,0), angle);
+
+	pos.add (dir); 	
+	
+	if (segway != undefined) { 
+		segway.scale.set (0.2,0.2,0.2);
+		segway.position.set (pos.x, pos.y, pos.z);
+		segway.rotation.y = angle+Math.PI/2;
+		tire.rotation.y = angleL;
+		wheelplane1_L.rotation.z = -angleL;
+		wheelplane1_R.rotation.z = -angleL;
+		
+		tire2.rotation.y = angleR;
+		wheelplane2_L.rotation.z = -angleR;
+		wheelplane2_R.rotation.z = -angleR;
+	}
+	
+	requestAnimationFrame ( animate ); 
+	update();
+	render(); 
+	
+}
+
+function myclamp(x,lo,hi)
+{
+	if (x < lo) return x;
+	if (x > hi) return hi;
+	return x;
+}
+
+function update()
+{	
+	controls.update();
+	keyboard.update();         
+
+	if ( keyboard.pressed("left") )
+	{ 
+		angleL -= 0.3;
+		angleR -= 0.05;
+		speedL += 0.5; 
+		
+	}
+	if ( keyboard.pressed("right") )
+	{
+		angleL -= 0.05;
+		angleR -= 0.3;
+		speedR += 0.5; 
+		
+	}
+	if ( keyboard.pressed("up") )  
+	{	
+		angleL -= 0.05;
+		angleR -= 0.05;
+		speedL += 0.5;
+		speedR += 0.5;
+	}
+	if ( keyboard.pressed("down") ) 
+	{
+		angleL += 0.05;
+		angleR += 0.05;
+		speedL -= 0.5;
+		speedR -= 0.5;
+	} 	
+
+	// viscous drag
+	speedL *= 0.95;
+	speedR *= 0.95;
+
+	console.log ("L: " + speedL + "; R: " + speedR);
+	
+	// no backtrack yet
+	speedL = myclamp (speedL, 0, 20);
+	speedR = myclamp (speedR, 0, 20);
+	
+	speed = (speedL + speedR)/2;
+	rotspeed = (speedL - speedR)/10;
+}
+
+function render()
+{
+	renderer.render (scene, camera);
+}
+
+
+</script>
+</body>
+
+</html>
